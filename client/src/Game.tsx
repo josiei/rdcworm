@@ -1,6 +1,6 @@
 // client/src/Game.tsx
 import { useEffect, useMemo, useRef } from "react";
-import type { Food, PlayerView, Snapshot } from "./net/protocol";
+import type { Food, PlayerView, Snapshot, Vec } from "./net/protocol";
 import { useGame } from "./hooks/useGame";
 
 // ---------- small log throttle so console doesn't spam ----------
@@ -30,6 +30,24 @@ function useAvatarCache() {
 }
 
 // ---------- drawing helpers (world coords) ----------
+function unwrapBodyPath(body: Vec[], world: { width: number; height: number }): Vec[] {
+  if (body.length === 0) return [];
+  const out: Vec[] = [body[0]];
+  for (let i = 1; i < body.length; i++) {
+    const prev = out[out.length - 1];
+    let dx = body[i].x - prev.x;
+    let dy = body[i].y - prev.y;
+
+    if (dx > world.width / 2) dx -= world.width;
+    if (dx < -world.width / 2) dx += world.width;
+    if (dy > world.height / 2) dy -= world.height;
+    if (dy < -world.height / 2) dy += world.height;
+
+    out.push({ x: prev.x + dx, y: prev.y + dy });
+  }
+  return out;
+}
+
 function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.save();
   ctx.strokeStyle = "rgba(255,255,255,0.05)";
@@ -55,8 +73,8 @@ function drawFoods(ctx: CanvasRenderingContext2D, foods: Food[]) {
   ctx.restore();
 }
 
-function drawBody(ctx: CanvasRenderingContext2D, p: PlayerView) {
-  const pts = p.body;
+function drawBody(ctx: CanvasRenderingContext2D, p: PlayerView, world: { width: number; height: number }) {
+  const pts = unwrapBodyPath(p.body, world);
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -180,7 +198,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       drawGrid(ctx, world.width, world.height);
       drawFoods(ctx, snap.foods);
       for (const p of players) {
-        drawBody(ctx, p);
+        drawBody(ctx, p, world);
         const img = avatars.get(p.avatar);
         // always draw a fallback head so worm never disappears
         drawHeadFallback(ctx, p);
