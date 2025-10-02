@@ -1,7 +1,7 @@
 // server/src/index.ts
 import { WebSocketServer } from "ws";
 import type {
-  ClientHello, TurnMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome, FoodItem
+  ClientHello, TurnMsg, BoostMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome, FoodItem
 } from "../../client/src/net/protocol";
 
 // Import shared collision utilities
@@ -22,6 +22,7 @@ type PlayerState = {
   score: number;
   alive: boolean;
   turn: -1 | 0 | 1;
+  boosting: boolean;      // true when player is boosting
 };
 
 const wss = new WebSocketServer({ port: 8080 });
@@ -79,6 +80,7 @@ function spawnPlayer(id: string, name: string, color: string, avatar?: string): 
     score: 10,
     alive: true,
     turn: 0,
+    boosting: false,
   };
   players.set(id, p);
   return p;
@@ -176,6 +178,24 @@ function step() {
     // steering
     const TURN_SPEED = 0.12; // radians per tick
     p.angle += p.turn * TURN_SPEED;
+
+    // boost logic: speed increase + score depletion
+    const BASE_SPEED = 4.0;
+    const BOOST_MULTIPLIER = 1.8; // 80% faster when boosting
+    const BOOST_COST_PER_TICK = 0.5; // Score points lost per tick while boosting
+    
+    if (p.boosting && p.score > 10) {
+      p.speed = BASE_SPEED * BOOST_MULTIPLIER;
+      p.score -= BOOST_COST_PER_TICK;
+      // Auto-stop boosting when score gets too low
+      if (p.score <= 10) {
+        p.boosting = false;
+        p.score = 10; // Prevent going below minimum
+      }
+    } else {
+      p.speed = BASE_SPEED;
+      p.boosting = false; // Stop boosting if score too low
+    }
 
     // move
     p.pos.x = wrap(p.pos.x + Math.cos(p.angle) * p.speed, WORLD.width);
@@ -293,6 +313,7 @@ function toView(p: PlayerState): PlayerView {
     body: p.body.slice(), // copy for safety
     score: p.score,
     alive: p.alive,
+    boosting: p.boosting ? true : undefined, // Only include if boosting
   };
 }
 
@@ -339,12 +360,16 @@ wss.on("connection", (ws) => {
 
       const welcome: Welcome = { type: "welcome", selfId: id, world: WORLD };
       ws.send(JSON.stringify(welcome));
-      return;
     }
 
     if (msg.type === "turn" && me) {
       const t = msg as TurnMsg;
       if (t.dir === -1 || t.dir === 0 || t.dir === 1) me.turn = t.dir;
+    }
+
+    if (msg.type === "boost" && me) {
+      const b = msg as BoostMsg;
+      me.boosting = b.boosting;
     }
 
     if (msg.type === "respawn" && me && !me.alive) {
@@ -355,6 +380,7 @@ wss.on("connection", (ws) => {
       me.score = 10;       // Reset to starting score
       me.alive = true;     // Back to life
       me.turn = 0;         // Reset turn state
+      me.boosting = false; // Reset boost state
       
       console.log(`[respawn] ${me.name} respawned as baby worm at (${Math.round(me.pos.x)}, ${Math.round(me.pos.y)})`);
     }

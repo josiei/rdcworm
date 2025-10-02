@@ -109,7 +109,17 @@ export function useGame(name: string, color: string, avatar?: string) {
     ws.send(JSON.stringify({ type: "turn", dir }));
   };
 
+  // send boost
+  const sendBoost = (boosting: boolean) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (throttle("drop-boost", 1000)) console.debug("[client] DROP boost (socket not open)", { type: "boost", boosting });
+      return;
+    }
+    ws.send(JSON.stringify({ type: "boost", boosting }));
+  };
+
   return {
-    connected, selfId, world, snapshot, sendTurn,
+    connected, selfId, world, snapshot, sendTurn, sendBoost,
   } as const;
 }

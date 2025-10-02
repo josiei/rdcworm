@@ -14,6 +14,7 @@ export type PlayerView = {
   body: Vec[];               // tail points, newest first or last – see renderer
   score: number;
   alive: boolean;
+  boosting?: boolean;        // true when player is boosting
 };
 
 export type Food = Vec;
@@ -37,6 +38,7 @@ export type Snapshot = {
 // --- Client → Server ---
 export type ClientHello = { type: "hello"; name: string; color: string; avatar?: string };
 export type TurnMsg     = { type: "turn"; dir: -1 | 0 | 1 };  // -1 left, 0 none, 1 right
+export type BoostMsg    = { type: "boost"; boosting: boolean }; // boost on/off
 export type RespawnMsg  = { type: "respawn" };
 
 // --- Server → Client ---

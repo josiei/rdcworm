@@ -230,7 +230,7 @@ function DeathOverlay({ playerName, onRespawn }: {
 
 // ---------- main component ----------
 export default function Game({ name, color, avatar }: { name: string; color: string; avatar?: string }) {
-  const { selfId, world, snapshot, sendTurn } = useGame(name, color, avatar);
+  const { selfId, world, snapshot, sendTurn, sendBoost } = useGame(name, color, avatar);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
   const foodAssets = useFoodAssetCache();
@@ -265,13 +265,14 @@ export default function Game({ name, color, avatar }: { name: string; color: str
     }
   };
 
-  // keyboard -> turn messages
+  // keyboard -> turn and boost messages
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return;
       if (e.type === "keydown") {
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") sendTurn(-1);
         if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") sendTurn(1);
+        if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") sendBoost(true);
         
         // Spacebar respawn
         if (e.key === " ") {
@@ -283,6 +284,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       } else {
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") sendTurn(0);
         if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") sendTurn(0);
+        if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") sendBoost(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -291,7 +293,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
     };
-  }, [sendTurn]);
+  }, [sendTurn, sendBoost]);
 
   // render loop with camera that centers on self head
   useEffect(() => {
