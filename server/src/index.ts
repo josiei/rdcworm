@@ -1,5 +1,9 @@
 // server/src/index.ts
 import { WebSocketServer } from "ws";
+import { createServer } from "http";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import type {
   ClientHello, TurnMsg, BoostMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome, FoodItem
 } from "../../client/src/net/protocol";
@@ -7,8 +11,12 @@ import type {
 // Import shared collision utilities
 import { type BodyData } from "../../shared/engine/collision";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const TICK_HZ = 30;
 const WORLD: WorldView = { width: 5000, height: 3000 };
+const PORT = process.env.PORT || 8080;
 
 type PlayerState = {
   id: string;
@@ -25,8 +33,56 @@ type PlayerState = {
   boosting: boolean;      // true when player is boosting
 };
 
-const wss = new WebSocketServer({ port: 8080 });
-console.log("[server] listening on :8080");
+// Create HTTP server to serve static files
+const server = createServer((req, res) => {
+  // Serve static files from client/dist
+  const clientDistPath = join(__dirname, "../../client/dist");
+  
+  try {
+    let filePath = req.url === "/" ? "/index.html" : req.url;
+    const fullPath = join(clientDistPath, filePath!);
+    
+    // Security check - prevent directory traversal
+    if (!fullPath.startsWith(clientDistPath)) {
+      res.writeHead(403);
+      res.end("Forbidden");
+      return;
+    }
+    
+    const content = readFileSync(fullPath);
+    
+    // Set content type based on file extension
+    const ext = filePath!.split('.').pop();
+    const contentTypes: Record<string, string> = {
+      'html': 'text/html',
+      'js': 'application/javascript',
+      'css': 'text/css',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'svg': 'image/svg+xml',
+      'ico': 'image/x-icon'
+    };
+    
+    res.writeHead(200, { 'Content-Type': contentTypes[ext || 'html'] || 'text/plain' });
+    res.end(content);
+  } catch (error) {
+    // If file not found, serve index.html for SPA routing
+    try {
+      const indexPath = join(clientDistPath, "index.html");
+      const indexContent = readFileSync(indexPath);
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(indexContent);
+    } catch {
+      res.writeHead(404);
+      res.end("Not Found");
+    }
+  }
+});
+
+const wss = new WebSocketServer({ server });
+server.listen(PORT, () => {
+  console.log(`[server] listening on :${PORT}`);
+});
 
 const players = new Map<string, PlayerState>();
 let foods: Vec[] = [];

@@ -11,7 +11,9 @@ type GameState = {
   snapshot: Snapshot | null;
 };
 
-const WS_URL = `ws://localhost:8080`;
+const WS_URL = typeof window !== 'undefined' && window.location.protocol === 'https:' 
+  ? `wss://${window.location.host}` 
+  : `ws://localhost:8080`;
 
 function isSnapshot(x: any): x is Snapshot {
   return !!x && typeof x === "object" &&
