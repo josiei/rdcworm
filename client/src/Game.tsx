@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Food, PlayerView, Snapshot, Vec } from "./net/protocol";
 import { useGame } from "./hooks/useGame";
+import Leaderboard from "./ui/Leaderboard";
 
 // ---------- small log throttle so console doesn't spam ----------
 const canLog = (() => {
@@ -215,9 +216,12 @@ export default function Game({ name, color, avatar }: { name: string; color: str
 
   // HUD (minimal)
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", display: "block", background: "rgb(15,28,42)" }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", display: "block", background: "rgb(15,28,42)" }}
+      />
+      {snapshot && <Leaderboard players={snapshot.players} />}
+    </>
   );
 }
