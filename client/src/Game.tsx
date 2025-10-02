@@ -177,7 +177,7 @@ function drawHeadFallback(ctx: CanvasRenderingContext2D, p: PlayerView) {
 
 function drawHeadAvatar(ctx: CanvasRenderingContext2D, p: PlayerView, img: HTMLImageElement | null) {
   if (!img || !img.complete) return; // not yet loaded
-  const r = 14;
+  const r = 22; // Increased avatar image size for better visibility
   const { x, y } = p.head.pos;
   ctx.save();
   ctx.translate(x, y);
