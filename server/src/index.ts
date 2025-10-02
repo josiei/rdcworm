@@ -9,6 +9,7 @@ import { type BodyData } from "../../shared/engine/collision";
 
 const TICK_HZ = 30;
 const WORLD: WorldView = { width: 5000, height: 3000 };
+const PORT = Number(process.env.PORT) || 8080;
 
 type PlayerState = {
   id: string;
@@ -25,8 +26,8 @@ type PlayerState = {
   boosting: boolean;      // true when player is boosting
 };
 
-const wss = new WebSocketServer({ port: 8080 });
-console.log("[server] listening on :8080");
+const wss = new WebSocketServer({ port: PORT });
+console.log(`[server] listening on :${PORT}`);
 
 const players = new Map<string, PlayerState>();
 let foods: Vec[] = [];
