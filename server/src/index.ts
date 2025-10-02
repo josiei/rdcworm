@@ -33,7 +33,7 @@ type PlayerState = {
 // Create HTTP server to serve static files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const clientDistPath = join(__dirname, '../../client/dist');
+const clientDistPath = join(__dirname, '../../../client/dist');
 
 const server = createServer((req, res) => {
   // Enable CORS
