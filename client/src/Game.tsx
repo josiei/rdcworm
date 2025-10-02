@@ -117,6 +117,48 @@ function drawHeadAvatar(ctx: CanvasRenderingContext2D, p: PlayerView, img: HTMLI
   ctx.restore();
 }
 
+// ---------- death overlay component ----------
+function DeathOverlay({ playerName, onRespawn }: { 
+  playerName: string; 
+  onRespawn: () => void; 
+}) {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      zIndex: 1000,
+    }}>
+      <div style={{
+        background: 'rgba(15, 28, 42, 0.95)',
+        border: '2px solid #ff6b6b',
+        borderRadius: 12,
+        padding: '40px 60px',
+        textAlign: 'center',
+        color: 'white',
+        fontFamily: 'monospace',
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 20 }}>💀 YOU DIED!</div>
+        <div style={{ fontSize: 16, opacity: 0.8, marginBottom: 20 }}>
+          {playerName} was eliminated
+        </div>
+        <div style={{ fontSize: 18, marginBottom: 10 }}>
+          Press <strong>SPACEBAR</strong> to respawn
+        </div>
+        <div style={{ fontSize: 14, opacity: 0.6 }}>
+          You'll start as a baby worm
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- main component ----------
 export default function Game({ name, color, avatar }: { name: string; color: string; avatar?: string }) {
   const { selfId, world, snapshot, sendTurn } = useGame(name, color, avatar);
@@ -136,6 +178,19 @@ export default function Game({ name, color, avatar }: { name: string; color: str
     return () => window.removeEventListener("resize", resize);
   }, []);
 
+  // respawn handler
+  const handleRespawn = () => {
+    // Send respawn message using existing sendTurn mechanism
+    // We'll need to extend sendTurn to handle respawn messages
+    if (snapshot) {
+      const me = selfId ? snapshot.players.find(p => p.id === selfId) : undefined;
+      if (me && !me.alive) {
+        // For now, we'll use a simple page reload approach
+        window.location.reload();
+      }
+    }
+  };
+
   // keyboard -> turn messages
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -143,6 +198,14 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       if (e.type === "keydown") {
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") sendTurn(-1);
         if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") sendTurn(1);
+        
+        // Spacebar respawn
+        if (e.key === " ") {
+          const me = selfId && snapshot ? snapshot.players.find(p => p.id === selfId) : undefined;
+          if (me && !me.alive) {
+            handleRespawn();
+          }
+        }
       } else {
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") sendTurn(0);
         if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") sendTurn(0);
@@ -226,6 +289,10 @@ export default function Game({ name, color, avatar }: { name: string; color: str
         <>
           <Score player={selfId ? snapshot.players.find(p => p.id === selfId) : undefined} />
           <Leaderboard players={snapshot.players} />
+          {(() => {
+            const me = selfId ? snapshot.players.find(p => p.id === selfId) : undefined;
+            return me && !me.alive ? <DeathOverlay playerName={name} onRespawn={handleRespawn} /> : null;
+          })()}
         </>
       )}
     </>

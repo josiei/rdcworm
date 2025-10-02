@@ -68,11 +68,6 @@ export default function Score({ player }: Props) {
         </div>
         <div style={{ opacity: 0.8, fontSize: 16, fontWeight: 600 }}>{player.score}</div>
       </div>
-      {!player.alive && (
-        <div style={{ opacity: 0.6, fontSize: 12, marginTop: 4 }}>
-          💀 You died! Refresh to respawn
-        </div>
-      )}
     </div>
   );
 }

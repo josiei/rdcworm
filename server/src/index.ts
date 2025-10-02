@@ -294,6 +294,18 @@ wss.on("connection", (ws) => {
       const t = msg as TurnMsg;
       if (t.dir === -1 || t.dir === 0 || t.dir === 1) me.turn = t.dir;
     }
+
+    if (msg.type === "respawn" && me && !me.alive) {
+      // Reset to baby worm state
+      me.pos = { x: Math.random() * WORLD.width, y: Math.random() * WORLD.height };
+      me.angle = Math.random() * Math.PI * 2;
+      me.body = [];        // Baby worm - no body segments
+      me.score = 10;       // Reset to starting score
+      me.alive = true;     // Back to life
+      me.turn = 0;         // Reset turn state
+      
+      console.log(`[respawn] ${me.name} respawned as baby worm at (${Math.round(me.pos.x)}, ${Math.round(me.pos.y)})`);
+    }
   });
 
   ws.on("close", () => {
