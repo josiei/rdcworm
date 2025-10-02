@@ -199,7 +199,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       // draw world contents in world-space
       drawGrid(ctx, world.width, world.height);
       drawFoods(ctx, snap.foods);
-      for (const p of players) {
+      for (const p of players.filter(p => p.alive)) {
         drawBody(ctx, p, world);
         const img = avatars.get(p.avatar);
         // always draw a fallback head so worm never disappears

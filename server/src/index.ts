@@ -30,7 +30,7 @@ console.log("[server] listening on :8080");
 const players = new Map<string, PlayerState>();
 let foods: Vec[] = [];
 
-function seedFoods(n = 120) {
+function seedFoods(n = 250) {
   foods = Array.from({ length: n }, () => ({
     x: Math.random() * WORLD.width,
     y: Math.random() * WORLD.height,
@@ -65,6 +65,78 @@ function dist2(a: Vec, b: Vec) {
 }
 const FOOD_R2 = 18*18;
 const HEAD_R2 = 14*14;
+
+// Create food burst when worm dies
+function createFoodBurst(player: PlayerState): Vec[] {
+  const burstFood: Vec[] = [];
+  
+  // Scale burst with worm size (bigger worms = bigger bursts)
+  const bodySegments = Math.min(player.body.length, 150); // Cap at 150 segments
+  const segmentFood = Math.floor(bodySegments / 3);       // Every 3rd segment
+  
+  // Scale bonus with score (high scorers = more bonus food)
+  const bonusFood = Math.min(Math.floor(player.score / 8), 25); // Cap at 25 bonus
+  
+  console.log(`[food-burst] ${player.name} (score: ${player.score}, body: ${bodySegments}) creating ${segmentFood + bonusFood} food items`);
+  
+  // Create food from body segments
+  for (let i = 0; i < segmentFood; i++) {
+    const segmentIndex = i * 3;
+    if (segmentIndex < player.body.length) {
+      const segment = player.body[segmentIndex];
+      const offsetX = (Math.random() - 0.5) * 40;
+      const offsetY = (Math.random() - 0.5) * 40;
+      
+      burstFood.push({
+        x: wrap(segment.x + offsetX, WORLD.width),
+        y: wrap(segment.y + offsetY, WORLD.height)
+      });
+    }
+  }
+  
+  // Create bonus food in circle pattern
+  for (let i = 0; i < bonusFood; i++) {
+    const angle = (Math.PI * 2 * i) / bonusFood;
+    const radius = 60 + Math.random() * 40;
+    burstFood.push({
+      x: wrap(player.pos.x + Math.cos(angle) * radius, WORLD.width),
+      y: wrap(player.pos.y + Math.sin(angle) * radius, WORLD.height)
+    });
+  }
+  
+  return burstFood;
+}
+
+// Clean up food that's far from all players (only when over cap)
+function cleanupDistantFood() {
+  const MAX_FOOD = 400; // Cap for 20 players
+  
+  if (foods.length <= MAX_FOOD) return; // Only cleanup when needed
+  
+  const playerPositions = Array.from(players.values())
+    .filter(p => p.alive)
+    .map(p => p.pos);
+  
+  if (playerPositions.length === 0) return; // No players, no cleanup
+  
+  // Calculate distance to nearest player for each food
+  const foodWithDistance = foods.map(food => {
+    const nearestPlayerDist = Math.min(...playerPositions.map(playerPos => 
+      dist2(playerPos, food)
+    ));
+    return { food, nearestPlayerDist };
+  });
+  
+  // Sort by distance (furthest from players first)
+  foodWithDistance.sort((a, b) => b.nearestPlayerDist - a.nearestPlayerDist);
+  
+  // Keep only the closest foods to players
+  const toKeep = MAX_FOOD - 50; // Keep buffer below max
+  foods = foodWithDistance.slice(-toKeep).map(item => item.food);
+  
+  const removed = foodWithDistance.length - toKeep;
+  console.log(`[food-cleanup] Removed ${removed} distant food items. Total food: ${foods.length}`);
+}
 
 function step() {
   // move players
@@ -106,7 +178,9 @@ function step() {
   // collisions (head-to-body, simple)
   const dead: string[] = [];
   const bodies: BodyData[] =
-    Array.from(players.values()).map(p => ({ ownerId: p.id, points: p.body }));
+    Array.from(players.values())
+      .filter(p => p.alive)
+      .map(p => ({ ownerId: p.id, points: p.body }));
 
   for (const p of players.values()) {
     if (!p.alive) continue;
@@ -117,6 +191,11 @@ function step() {
         if (dist2(p.pos, q) < HEAD_R2) {
           p.alive = false;
           dead.push(p.id);
+          
+          // Create food burst from dead worm
+          const burstFood = createFoodBurst(p);
+          foods.push(...burstFood);
+          
           break;
         }
       }
@@ -136,10 +215,19 @@ function step() {
         playerA.alive = false;
         playerB.alive = false;
         dead.push(playerA.id, playerB.id);
+        
+        // Create food bursts from both dead worms
+        const burstFoodA = createFoodBurst(playerA);
+        const burstFoodB = createFoodBurst(playerB);
+        foods.push(...burstFoodA, ...burstFoodB);
+        
         console.log(`[collision] Head-to-head: ${playerA.name} and ${playerB.name} both died`);
       }
     }
   }
+
+  // Clean up distant food if over cap
+  cleanupDistantFood();
 
   return dead;
 }
