@@ -4,8 +4,13 @@ import type {
   ClientHello, TurnMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome
 } from "../../client/src/net/protocol";
 
+// Import shared collision utilities
+import { headHitsAnyBody, headHeadDeaths, type BodyData } from "../../shared/engine/collision";
+import type { World } from "../../shared/engine/math";
+
 const TICK_HZ = 30;
 const WORLD: WorldView = { width: 5000, height: 3000 };
+const WORLD_COLLISION: World = { width: 5000, height: 3000 }; // For collision utilities
 
 type PlayerState = {
   id: string;
@@ -102,14 +107,14 @@ function step() {
 
   // collisions (head-to-body, simple)
   const dead: string[] = [];
-  const bodies: { owner: string; pts: Vec[] }[] =
-    Array.from(players.values()).map(p => ({ owner: p.id, pts: p.body }));
+  const bodies: BodyData[] =
+    Array.from(players.values()).map(p => ({ ownerId: p.id, points: p.body }));
 
   for (const p of players.values()) {
     if (!p.alive) continue;
     for (const b of bodies) {
       // allow touching your first few segments (hinge)
-      const pts = b.owner === p.id ? b.pts.slice(6) : b.pts;
+      const pts = b.ownerId === p.id ? b.points.slice(6) : b.points;
       for (const q of pts) {
         if (dist2(p.pos, q) < HEAD_R2) {
           p.alive = false;
