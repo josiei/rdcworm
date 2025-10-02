@@ -187,9 +187,8 @@ function drawHeadAvatar(ctx: CanvasRenderingContext2D, p: PlayerView, img: HTMLI
 }
 
 // ---------- death overlay component ----------
-function DeathOverlay({ playerName, onRespawn }: { 
+function DeathOverlay({ playerName }: { 
   playerName: string; 
-  onRespawn: () => void; 
 }) {
   return (
     <div style={{
@@ -394,7 +393,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
           <Leaderboard players={snapshot.players} />
           {(() => {
             const me = selfId ? snapshot.players.find(p => p.id === selfId) : undefined;
-            return me && !me.alive ? <DeathOverlay playerName={name} onRespawn={handleRespawn} /> : null;
+            return me && !me.alive ? <DeathOverlay playerName={name} /> : null;
           })()}
         </>
       )}

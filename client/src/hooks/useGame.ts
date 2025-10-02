@@ -1,15 +1,9 @@
 // client/src/hooks/useGame.ts
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
-  AnyServerMsg, Welcome, StateMsg, Snapshot, WorldView, PlayerView, Food
+  AnyServerMsg, Welcome, Snapshot, WorldView
 } from "../net/protocol";
 
-type GameState = {
-  connected: boolean;
-  selfId: string | null;
-  world: WorldView | null;
-  snapshot: Snapshot | null;
-};
 
 const WS_URL = `ws://localhost:8080`;
 
