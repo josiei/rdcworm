@@ -39,6 +39,9 @@ function useFoodAssetCache() {
     let img = cache.get(asset);
     if (img) return img;
     img = new Image();
+    // Improve SVG rendering quality
+    img.style.imageRendering = 'crisp-edges';
+    img.crossOrigin = 'anonymous';
     img.src = asset;
     cache.set(asset, img);
     return img;
@@ -98,21 +101,42 @@ const FOOD_TYPES = {
 } as const;
 
 function drawBonusFood(ctx: CanvasRenderingContext2D, bonusFood: FoodItem[], foodAssets: any) {
+  if (bonusFood.length === 0) return;
+  
   ctx.save();
   
-  for (const food of bonusFood) {
-    const foodType = FOOD_TYPES[food.type];
+  // Set quality settings once for all assets
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  // Group by food type to minimize context switches
+  const foodByType = {
+    bug: bonusFood.filter(f => f.type === 'bug'),
+    jira: bonusFood.filter(f => f.type === 'jira'),
+    zillow: bonusFood.filter(f => f.type === 'zillow')
+  };
+  
+  // Draw each type in batches
+  for (const [type, foods] of Object.entries(foodByType)) {
+    if (foods.length === 0) continue;
+    
+    const foodType = FOOD_TYPES[type as keyof typeof FOOD_TYPES];
     const img = foodAssets.get(foodType.asset);
     const size = foodType.size;
     
     if (img && img.complete) {
-      // Draw the asset image
-      ctx.drawImage(img, food.x - size/2, food.y - size/2, size, size);
+      // Draw all assets of this type
+      for (const food of foods) {
+        ctx.drawImage(img, food.x - size/2, food.y - size/2, size, size);
+      }
     } else {
-      // Fallback: colored circle while asset loads
+      // Fallback: draw all circles of this type in one path
       ctx.fillStyle = foodType.color;
       ctx.beginPath();
-      ctx.arc(food.x, food.y, size/2, 0, Math.PI * 2);
+      for (const food of foods) {
+        ctx.moveTo(food.x + size/2, food.y);
+        ctx.arc(food.x, food.y, size/2, 0, Math.PI * 2);
+      }
       ctx.fill();
     }
   }
