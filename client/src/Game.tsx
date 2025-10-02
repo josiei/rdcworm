@@ -234,6 +234,10 @@ export default function Game({ name, color, avatar }: { name: string; color: str
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
   const foodAssets = useFoodAssetCache();
+  
+  // Smooth zoom animation state
+  const currentZoom = useRef(2.5); // Current interpolated zoom value
+  const targetZoom = useRef(2.5);  // Target zoom we're animating towards
 
   // resize canvas to viewport
   useEffect(() => {
@@ -315,18 +319,42 @@ export default function Game({ name, color, avatar }: { name: string; color: str
         console.log("[draw] players:", players.length, "self:", selfId, !!me ? "found" : "missing");
       }
 
-      // camera: center view on our head; clamp to world
+      // camera: center view on our head with smooth adaptive zoom
+      // Dynamic zoom based on worm size - closer when small, further when big
+      let zoom = 2.5; // Default zoom for baby worms
       let camX = 0, camY = 0;
       if (me) {
-        camX = Math.round(me.head.pos.x - c.width / 2);
-        camY = Math.round(me.head.pos.y - c.height / 2);
+        const score = me.score;
+        
+        // Calculate target zoom based on score
+        const newTargetZoom = Math.max(1.0, 2.5 - (score - 10) / 100);
+        targetZoom.current = newTargetZoom;
+        
+        // Smooth interpolation towards target zoom
+        const zoomDiff = targetZoom.current - currentZoom.current;
+        const lerpSpeed = 0.05; // Adjust for faster/slower transitions
+        
+        if (Math.abs(zoomDiff) > 0.001) {
+          currentZoom.current += zoomDiff * lerpSpeed;
+        } else {
+          currentZoom.current = targetZoom.current; // Snap when very close
+        }
+        
+        zoom = currentZoom.current; // Use interpolated zoom value
+        // Account for zoom when calculating camera position
+        const effectiveWidth = c.width / zoom;
+        const effectiveHeight = c.height / zoom;
+        
+        camX = Math.round(me.head.pos.x - effectiveWidth / 2);
+        camY = Math.round(me.head.pos.y - effectiveHeight / 2);
         // simple clamp so we don't drift to negatives if you don't want wrap
-        camX = Math.max(0, Math.min(camX, world.width - c.width));
-        camY = Math.max(0, Math.min(camY, world.height - c.height));
+        camX = Math.max(0, Math.min(camX, world.width - effectiveWidth));
+        camY = Math.max(0, Math.min(camY, world.height - effectiveHeight));
       }
 
-      // world transform
+      // world transform with zoom
       ctx.save();
+      ctx.scale(zoom, zoom);
       ctx.translate(-camX, -camY);
 
       // draw world contents in world-space
