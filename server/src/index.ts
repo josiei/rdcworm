@@ -5,12 +5,10 @@ import type {
 } from "../../client/src/net/protocol";
 
 // Import shared collision utilities
-import { headHitsAnyBody, headHeadDeaths, type BodyData } from "../../shared/engine/collision";
-import type { World } from "../../shared/engine/math";
+import { type BodyData } from "../../shared/engine/collision";
 
 const TICK_HZ = 30;
 const WORLD: WorldView = { width: 5000, height: 3000 };
-const WORLD_COLLISION: World = { width: 5000, height: 3000 }; // For collision utilities
 
 type PlayerState = {
   id: string;
@@ -123,6 +121,23 @@ function step() {
         }
       }
       if (!p.alive) break;
+    }
+  }
+
+  // Check head-to-head collisions (simple version)
+  const alivePlayers = Array.from(players.values()).filter(p => p.alive);
+  for (let i = 0; i < alivePlayers.length; i++) {
+    for (let j = i + 1; j < alivePlayers.length; j++) {
+      const playerA = alivePlayers[i];
+      const playerB = alivePlayers[j];
+      
+      if (dist2(playerA.pos, playerB.pos) < HEAD_R2) {
+        // Both worms die in head-to-head collision
+        playerA.alive = false;
+        playerB.alive = false;
+        dead.push(playerA.id, playerB.id);
+        console.log(`[collision] Head-to-head: ${playerA.name} and ${playerB.name} both died`);
+      }
     }
   }
 
