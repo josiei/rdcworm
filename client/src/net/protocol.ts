@@ -18,11 +18,19 @@ export type PlayerView = {
 
 export type Food = Vec;
 
+export type FoodItem = {
+  x: number;
+  y: number;
+  type: "bug" | "jira" | "zillow";
+  value: number;
+};
+
 export type Snapshot = {
   t: number;                 // server tick or ms timestamp
   world: WorldView;
   players: PlayerView[];
   foods: Food[];
+  bonusFood?: FoodItem[];    // asset-based food items (optional)
   dead?: string[];           // ids that died in this frame (optional)
 };
 

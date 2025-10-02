@@ -1,7 +1,7 @@
 // server/src/index.ts
 import { WebSocketServer } from "ws";
 import type {
-  ClientHello, TurnMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome
+  ClientHello, TurnMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome, FoodItem
 } from "../../client/src/net/protocol";
 
 // Import shared collision utilities
@@ -29,12 +29,43 @@ console.log("[server] listening on :8080");
 
 const players = new Map<string, PlayerState>();
 let foods: Vec[] = [];
+let bonusFood: FoodItem[] = [];
+
+// Food type definitions
+const FOOD_TYPES = {
+  bug: { value: 5, rarity: 0.70, asset: "/foodAssets/rdc-bug.svg" },
+  jira: { value: 10, rarity: 0.25, asset: "/foodAssets/rdc-jira.svg" },
+  zillow: { value: 50, rarity: 0.05, asset: "/foodAssets/rdc-zillow.svg" }
+} as const;
+
+function generateBonusFood(): FoodItem {
+  const rand = Math.random();
+  let type: keyof typeof FOOD_TYPES;
+  
+  if (rand < 0.05) type = "zillow";      // 5% - rare (50 points)
+  else if (rand < 0.30) type = "jira";   // 25% - uncommon (10 points)
+  else type = "bug";                     // 70% - common (5 points)
+  
+  return {
+    x: Math.random() * WORLD.width,
+    y: Math.random() * WORLD.height,
+    type,
+    value: FOOD_TYPES[type].value
+  };
+}
 
 function seedFoods(n = 250) {
+  // Regular yellow dot food (unchanged)
   foods = Array.from({ length: n }, () => ({
     x: Math.random() * WORLD.width,
     y: Math.random() * WORLD.height,
   }));
+  
+  // Bonus asset-based food (20% of total food count)
+  const bonusCount = Math.floor(n * 0.2); // ~50 bonus food items
+  bonusFood = Array.from({ length: bonusCount }, () => generateBonusFood());
+  
+  console.log(`[food] Seeded ${n} regular food + ${bonusCount} bonus food items`);
 }
 seedFoods();
 
@@ -175,6 +206,26 @@ function step() {
     }
   }
 
+  // eat bonus food
+  for (let i = bonusFood.length - 1; i >= 0; i--) {
+    const f = bonusFood[i];
+    let eaten = false;
+    for (const p of players.values()) {
+      if (!p.alive) continue;
+      if (dist2(p.pos, f) <= FOOD_R2) {
+        p.score += f.value; // Use food's point value
+        eaten = true;
+        console.log(`[bonus-food] ${p.name} ate ${f.type} (+${f.value} points, total: ${p.score})`);
+        break;
+      }
+    }
+    if (eaten) {
+      bonusFood.splice(i, 1);
+      // respawn new bonus food
+      bonusFood.push(generateBonusFood());
+    }
+  }
+
   // collisions (head-to-body, simple)
   const dead: string[] = [];
   const bodies: BodyData[] =
@@ -251,6 +302,7 @@ function snapshot(now: number): Snapshot {
     world: WORLD,
     players: Array.from(players.values()).map(toView),
     foods,
+    bonusFood: bonusFood.length > 0 ? bonusFood : undefined, // Only include if we have bonus food
   };
 }
 

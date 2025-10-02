@@ -1,6 +1,6 @@
 // client/src/Game.tsx
 import { useEffect, useMemo, useRef } from "react";
-import type { Food, PlayerView, Snapshot, Vec } from "./net/protocol";
+import type { Food, FoodItem, PlayerView, Snapshot, Vec } from "./net/protocol";
 import { useGame } from "./hooks/useGame";
 import Leaderboard from "./ui/Leaderboard";
 import Score from "./ui/Score";
@@ -26,6 +26,21 @@ function useAvatarCache() {
     img = new Image();
     img.src = url;
     cache.set(url, img);
+    return img;
+  };
+  return { get };
+}
+
+// ---------- food asset cache ----------
+function useFoodAssetCache() {
+  const cache = useMemo(() => new Map<string, HTMLImageElement>(), []);
+  const get = (asset?: string) => {
+    if (!asset) return null;
+    let img = cache.get(asset);
+    if (img) return img;
+    img = new Image();
+    img.src = asset;
+    cache.set(asset, img);
     return img;
   };
   return { get };
@@ -72,6 +87,36 @@ function drawFoods(ctx: CanvasRenderingContext2D, foods: Food[]) {
     ctx.arc(f.x, f.y, 4, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.restore();
+}
+
+// Food type definitions (matching server)
+const FOOD_TYPES = {
+  bug: { value: 5, size: 24, color: "#ff6b6b", asset: "/foodAssets/rdc-bug.svg" },
+  jira: { value: 10, size: 32, color: "#4dabf7", asset: "/foodAssets/rdc-jira.svg" },
+  zillow: { value: 50, size: 48, color: "#51cf66", asset: "/foodAssets/rdc-zillow.svg" }
+} as const;
+
+function drawBonusFood(ctx: CanvasRenderingContext2D, bonusFood: FoodItem[], foodAssets: any) {
+  ctx.save();
+  
+  for (const food of bonusFood) {
+    const foodType = FOOD_TYPES[food.type];
+    const img = foodAssets.get(foodType.asset);
+    const size = foodType.size;
+    
+    if (img && img.complete) {
+      // Draw the asset image
+      ctx.drawImage(img, food.x - size/2, food.y - size/2, size, size);
+    } else {
+      // Fallback: colored circle while asset loads
+      ctx.fillStyle = foodType.color;
+      ctx.beginPath();
+      ctx.arc(food.x, food.y, size/2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
   ctx.restore();
 }
 
@@ -164,6 +209,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
   const { selfId, world, snapshot, sendTurn } = useGame(name, color, avatar);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
+  const foodAssets = useFoodAssetCache();
 
   // resize canvas to viewport
   useEffect(() => {
@@ -262,6 +308,9 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       // draw world contents in world-space
       drawGrid(ctx, world.width, world.height);
       drawFoods(ctx, snap.foods);
+      if (snap.bonusFood) {
+        drawBonusFood(ctx, snap.bonusFood, foodAssets);
+      }
       for (const p of players.filter(p => p.alive)) {
         drawBody(ctx, p, world);
         const img = avatars.get(p.avatar);
