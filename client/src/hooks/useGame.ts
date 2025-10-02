@@ -1,19 +1,11 @@
 // client/src/hooks/useGame.ts
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
-  AnyServerMsg, Welcome, StateMsg, Snapshot, WorldView, PlayerView, Food
+  AnyServerMsg, Welcome, Snapshot, WorldView
 } from "../net/protocol";
 
-type GameState = {
-  connected: boolean;
-  selfId: string | null;
-  world: WorldView | null;
-  snapshot: Snapshot | null;
-};
 
-const WS_URL = typeof window !== 'undefined' && window.location.protocol === 'https:' 
-  ? `wss://${window.location.host}` 
-  : `ws://localhost:8080`;
+const WS_URL = `ws://localhost:8080`;
 
 function isSnapshot(x: any): x is Snapshot {
   return !!x && typeof x === "object" &&
