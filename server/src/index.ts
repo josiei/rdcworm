@@ -49,7 +49,13 @@ const server = createServer((req, res) => {
     const contentTypes: Record<string, string> = {
       'html': 'text/html',
       'js': 'application/javascript', 
-      'css': 'text/css'
+      'css': 'text/css',
+      'svg': 'image/svg+xml',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'ico': 'image/x-icon'
     };
     
     res.setHeader('Content-Type', contentTypes[ext] || 'text/plain');
