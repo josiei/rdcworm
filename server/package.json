@@ -14,11 +14,11 @@
   "description": "",
   "dependencies": {
     "nanoid": "^5.1.6",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "tsx": "^4.20.6"
   }
 }
