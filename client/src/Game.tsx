@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Food, PlayerView, Snapshot, Vec } from "./net/protocol";
 import { useGame } from "./hooks/useGame";
 import Leaderboard from "./ui/Leaderboard";
+import Score from "./ui/Score";
 
 // ---------- small log throttle so console doesn't spam ----------
 const canLog = (() => {
@@ -221,7 +222,12 @@ export default function Game({ name, color, avatar }: { name: string; color: str
         ref={canvasRef}
         style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", display: "block", background: "rgb(15,28,42)" }}
       />
-      {snapshot && <Leaderboard players={snapshot.players} />}
+      {snapshot && (
+        <>
+          <Score player={selfId ? snapshot.players.find(p => p.id === selfId) : undefined} />
+          <Leaderboard players={snapshot.players} />
+        </>
+      )}
     </>
   );
 }
