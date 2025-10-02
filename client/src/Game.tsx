@@ -117,7 +117,7 @@ function drawHeadAvatar(ctx: CanvasRenderingContext2D, p: PlayerView, img: HTMLI
 
 // ---------- main component ----------
 export default function Game({ name, color, avatar }: { name: string; color: string; avatar?: string }) {
-  const { connected, selfId, world, snapshot, sendTurn } = useGame(name, color, avatar);
+  const { selfId, world, snapshot, sendTurn } = useGame(name, color, avatar);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
 
