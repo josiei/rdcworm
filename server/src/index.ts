@@ -1,5 +1,9 @@
 // server/src/index.ts
+import { createServer } from "http";
 import { WebSocketServer } from "ws";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import type {
   ClientHello, TurnMsg, BoostMsg, WorldView, Snapshot, PlayerView, Vec, StateMsg, Welcome, FoodItem
 } from "../../client/src/net/protocol";
@@ -26,8 +30,44 @@ type PlayerState = {
   boosting: boolean;      // true when player is boosting
 };
 
-const wss = new WebSocketServer({ port: PORT });
-console.log(`[server] listening on :${PORT}`);
+// Create HTTP server to serve static files
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const clientDistPath = join(__dirname, '../../client/dist');
+
+const server = createServer((req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
+  let filePath = req.url === '/' ? '/index.html' : (req.url || '/index.html');
+  const fullPath = join(clientDistPath, filePath);
+  
+  if (existsSync(fullPath)) {
+    const content = readFileSync(fullPath);
+    const ext = filePath.split('.').pop() || 'html';
+    
+    const contentTypes: Record<string, string> = {
+      'html': 'text/html',
+      'js': 'application/javascript', 
+      'css': 'text/css'
+    };
+    
+    res.setHeader('Content-Type', contentTypes[ext] || 'text/plain');
+    res.writeHead(200);
+    res.end(content);
+  } else {
+    res.writeHead(404);
+    res.end('Not Found');
+  }
+});
+
+// Create WebSocket server attached to HTTP server
+const wss = new WebSocketServer({ server });
+
+// Start the server
+server.listen(PORT, () => {
+  console.log(`[server] HTTP + WebSocket listening on :${PORT}`);
+});
 
 const players = new Map<string, PlayerState>();
 let foods: Vec[] = [];
