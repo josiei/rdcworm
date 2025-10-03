@@ -190,6 +190,40 @@ function drawHeadAvatar(ctx: CanvasRenderingContext2D, p: PlayerView, img: HTMLI
   ctx.restore();
 }
 
+function drawPlayerName(ctx: CanvasRenderingContext2D, p: PlayerView, selfId?: string) {
+  // Don't show your own name (you know it's you)
+  if (p.id === selfId) return;
+  
+  const { x, y } = p.head.pos;
+  const thicknessRatio = (p.thickness || 14) / 14;
+  const headRadius = 22 * thicknessRatio;
+  
+  // Truncate long names for clean visual display
+  const maxLength = 12; // Reasonable limit for gameplay
+  const displayName = p.name.length > maxLength 
+    ? p.name.substring(0, maxLength - 1) + "…" 
+    : p.name;
+  
+  // Position name above the head with some padding
+  const nameY = y - headRadius - 8;
+  
+  ctx.save();
+  ctx.font = "12px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  
+  // Draw text outline for better readability
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.8)";
+  ctx.strokeText(displayName, x, nameY);
+  
+  // Draw main text
+  ctx.fillStyle = "white";
+  ctx.fillText(displayName, x, nameY);
+  
+  ctx.restore();
+}
+
 // ---------- death overlay component ----------
 function DeathOverlay({ playerName }: { 
   playerName: string; 
@@ -374,6 +408,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
         // always draw a fallback head so worm never disappears
         drawHeadFallback(ctx, p);
         drawHeadAvatar(ctx, p, img);
+        drawPlayerName(ctx, p, selfId || undefined);
       }
 
       ctx.restore();
