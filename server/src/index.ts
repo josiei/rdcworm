@@ -83,7 +83,7 @@ let bonusFood: FoodItem[] = [];
 const FOOD_TYPES = {
   bug: { value: 5, rarity: 0.70, asset: "/foodAssets/rdc-bug.svg" },
   jira: { value: 10, rarity: 0.25, asset: "/foodAssets/rdc-jira.svg" },
-  zillow: { value: 50, rarity: 0.05, asset: "/foodAssets/rdc-zillow.svg" }
+  zillow: { value: 30, rarity: 0.05, asset: "/foodAssets/rdc-zillow.svg" }
 } as const;
 
 function generateBonusFood(): FoodItem {
@@ -250,8 +250,10 @@ function step() {
 
     // grow body: push a copy of head every N ticks
     p.body.unshift({ x: p.pos.x, y: p.pos.y });
-    const targetLen = Math.max(15, Math.floor(p.score * 1.2));
-    if (p.body.length > targetLen) p.body.length = targetLen;
+    const targetLen = Math.max(15, Math.floor(p.score * 0.8)); // Reduced from 1.2 to 0.8 for slower growth
+    const maxLen = 300; // Cap worm length at 300 segments for better gameplay
+    const finalLen = Math.min(targetLen, maxLen);
+    if (p.body.length > finalLen) p.body.length = finalLen;
   }
 
   // eat food

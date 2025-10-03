@@ -97,7 +97,7 @@ function drawFoods(ctx: CanvasRenderingContext2D, foods: Food[]) {
 const FOOD_TYPES = {
   bug: { value: 5, size: 24, color: "#ff6b6b", asset: "/foodAssets/rdc-bug.svg" },
   jira: { value: 10, size: 32, color: "#4dabf7", asset: "/foodAssets/rdc-jira.svg" },
-  zillow: { value: 50, size: 48, color: "#51cf66", asset: "/foodAssets/rdc-zillow.svg" }
+  zillow: { value: 30, size: 48, color: "#51cf66", asset: "/foodAssets/rdc-zillow.svg" }
 } as const;
 
 function drawBonusFood(ctx: CanvasRenderingContext2D, bonusFood: FoodItem[], foodAssets: any) {
