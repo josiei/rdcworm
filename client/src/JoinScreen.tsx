@@ -7,6 +7,8 @@ type Props = {
 const SAMPLE_AVATARS = [
   "/avatars/rdc-bloop.svg",
   "/avatars/rdc-cheesin.svg",
+  "/avatars/rdc-morpheus.svg",
+  "/avatars/rdc-pepe.svg",
   "/avatars/rdc-peanut.svg",
   "/avatars/rdc-sunglasses.svg",
   "/avatars/reba-straight-smile.svg",
