@@ -15,6 +15,7 @@ export type PlayerView = {
   score: number;
   alive: boolean;
   boosting?: boolean;        // true when player is boosting
+  thickness?: number;        // body thickness (14 default, can grow thicker after max length)
 };
 
 export type Food = Vec;

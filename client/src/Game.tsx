@@ -150,7 +150,7 @@ function drawBody(ctx: CanvasRenderingContext2D, p: PlayerView, world: { width: 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = p.color;
-  ctx.lineWidth = 14;
+  ctx.lineWidth = p.thickness || 14; // Dynamic thickness with fallback
 
   if (pts.length >= 2) {
     ctx.beginPath();
@@ -170,14 +170,18 @@ function drawHeadFallback(ctx: CanvasRenderingContext2D, p: PlayerView) {
   ctx.save();
   ctx.fillStyle = p.color;
   ctx.beginPath();
-  ctx.arc(p.head.pos.x, p.head.pos.y, 8, 0, Math.PI * 2);
+  const thicknessRatio = (p.thickness || 14) / 14; // Scale with thickness
+  const fallbackRadius = 8 * thicknessRatio;
+  ctx.arc(p.head.pos.x, p.head.pos.y, fallbackRadius, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
 function drawHeadAvatar(ctx: CanvasRenderingContext2D, p: PlayerView, img: HTMLImageElement | null) {
   if (!img || !img.complete) return; // not yet loaded
-  const r = 22; // Increased avatar image size for better visibility
+  const baseRadius = 22;
+  const thicknessRatio = (p.thickness || 14) / 14; // Scale with thickness
+  const r = baseRadius * thicknessRatio; // Dynamic head size
   const { x, y } = p.head.pos;
   ctx.save();
   ctx.translate(x, y);

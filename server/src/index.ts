@@ -28,6 +28,7 @@ type PlayerState = {
   alive: boolean;
   turn: -1 | 0 | 1;
   boosting: boolean;      // true when player is boosting
+  thickness: number;      // body thickness (14 default, grows after max length)
 };
 
 // Create HTTP server to serve static files
@@ -128,6 +129,7 @@ function spawnPlayer(id: string, name: string, color: string, avatar?: string): 
     alive: true,
     turn: 0,
     boosting: false,
+    thickness: 14,
   };
   players.set(id, p);
   return p;
@@ -254,6 +256,19 @@ function step() {
     const maxLen = 300; // Cap worm length at 300 segments for better gameplay
     const finalLen = Math.min(targetLen, maxLen);
     if (p.body.length > finalLen) p.body.length = finalLen;
+
+    // Thickness progression: after max length, continue growing thicker
+    const baseThickness = 14;
+    const maxThickness = 28; // Double thickness for elite worms
+    
+    if (targetLen >= maxLen) {
+      // Once at max length, grow thicker based on excess score
+      const excessScore = p.score - (maxLen / 0.8); // Score beyond what's needed for max length (375)
+      const thicknessBonus = Math.min(excessScore * 0.1, maxThickness - baseThickness); // 0.1 thickness per excess point
+      p.thickness = baseThickness + Math.max(0, thicknessBonus);
+    } else {
+      p.thickness = baseThickness; // Standard thickness while growing length
+    }
   }
 
   // eat food
@@ -363,6 +378,7 @@ function toView(p: PlayerState): PlayerView {
     score: p.score,
     alive: p.alive,
     boosting: p.boosting ? true : undefined, // Only include if boosting
+    thickness: p.thickness !== 14 ? p.thickness : undefined, // Only include if different from default
   };
 }
 
@@ -430,6 +446,7 @@ wss.on("connection", (ws) => {
       me.alive = true;     // Back to life
       me.turn = 0;         // Reset turn state
       me.boosting = false; // Reset boost state
+      me.thickness = 14;   // Reset thickness to default
       
       console.log(`[respawn] ${me.name} respawned as baby worm at (${Math.round(me.pos.x)}, ${Math.round(me.pos.y)})`);
     }
