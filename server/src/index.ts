@@ -12,7 +12,7 @@ import type {
 import { type BodyData } from "../../shared/engine/collision";
 
 const TICK_HZ = 30;
-const WORLD: WorldView = { width: 5000, height: 3000 };
+const WORLD: WorldView = { width: 2000, height: 1200 };
 const PORT = Number(process.env.PORT) || 8080;
 
 type PlayerState = {
