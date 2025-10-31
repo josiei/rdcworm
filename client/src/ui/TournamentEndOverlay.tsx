@@ -47,6 +47,7 @@ export default function TournamentEndOverlay({ winnerName, winnerScore }: Props)
           style={{
             fontSize: 24,
             opacity: 0.8,
+            marginBottom: 32,
           }}
         >
           Final Score: {winnerScore}
@@ -60,7 +61,23 @@ export default function TournamentEndOverlay({ winnerName, winnerScore }: Props)
         >
           🎉 Congratulations! 🎉
         </div>
+        <div
+          style={{
+            marginTop: 48,
+            fontSize: 16,
+            opacity: 0.5,
+            animation: "pulse 2s ease-in-out infinite",
+          }}
+        >
+          Press SPACEBAR to continue
+        </div>
       </div>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.8; }
+        }
+      `}</style>
     </div>
   );
 }

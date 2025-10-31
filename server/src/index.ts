@@ -365,19 +365,28 @@ function startRoomGameLoop(room: Room) {
       if (remaining <= 0 && room.state === "active") {
         room.state = "finished";
         
-        // Find winner (top score)
+        // Find winner (top score) and store it
         const players = Array.from(room.gameState.activePlayers.values());
         if (players.length > 0) {
           const winner = players.reduce((top, p) => p.score > top.score ? p : top);
-          (snap as any).tournamentWinner = {
-            name: winner.name,
-            score: winner.score
+          room.tournament = {
+            topPlayers: [{ id: winner.id, name: winner.name, score: winner.score }],
+            advancedPlayers: new Set()
           };
           console.log(`[tournament] ${room.config.name} round ended - Winner: ${winner.name} (${winner.score})`);
         } else {
           console.log(`[tournament] ${room.config.name} round ended (timer expired)`);
         }
       }
+    }
+    
+    // Show winner overlay if round is finished
+    if (room.state === "finished" && room.tournament && room.tournament.topPlayers.length > 0) {
+      const winner = room.tournament.topPlayers[0];
+      (snap as any).tournamentWinner = {
+        name: winner.name,
+        score: winner.score
+      };
     }
     
     const payload: StateMsg = { type: "state", snapshot: snap };
@@ -444,6 +453,12 @@ function handleAdminCommand(ws: any, msg: any, isAdmin: boolean) {
       room.state = "active";
       if (room.timing) {
         room.timing.roundStartTime = Date.now();
+      }
+      
+      // Clear previous winner overlay
+      if (room.tournament) {
+        room.tournament.topPlayers = [];
+        room.tournament.advancedPlayers.clear();
       }
       
       console.log(`[admin] ${room.config.name} tournament started`);
