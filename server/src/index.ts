@@ -15,6 +15,62 @@ const TICK_HZ = 30;
 const WORLD: WorldView = { width: 2000, height: 1200 };
 const PORT = Number(process.env.PORT) || 8080;
 
+// Spatial partitioning for optimized collision detection
+class SpatialGrid {
+  cellSize: number;
+  cols: number;
+  rows: number;
+  worldWidth: number;
+  worldHeight: number;
+  grid: Map<string, Array<{ segment: Vec; ownerId: string; segmentIndex: number }>>;
+
+  constructor(worldWidth: number, worldHeight: number, cellSize = 100) {
+    this.cellSize = cellSize;
+    this.worldWidth = worldWidth;
+    this.worldHeight = worldHeight;
+    this.cols = Math.ceil(worldWidth / cellSize);
+    this.rows = Math.ceil(worldHeight / cellSize);
+    this.grid = new Map();
+  }
+
+  // Convert world position to grid cell (handles toroidal wrapping)
+  cellKey(x: number, y: number): string {
+    const cx = Math.floor(x / this.cellSize) % this.cols;
+    const cy = Math.floor(y / this.cellSize) % this.rows;
+    return `${cx},${cy}`;
+  }
+
+  // Add a segment to the grid
+  insert(segment: Vec, ownerId: string, segmentIndex: number) {
+    const key = this.cellKey(segment.x, segment.y);
+    if (!this.grid.has(key)) this.grid.set(key, []);
+    this.grid.get(key)!.push({ segment, ownerId, segmentIndex });
+  }
+
+  // Get all segments near a position (checks 3×3 cells around it)
+  queryNearby(pos: Vec): Array<{ segment: Vec; ownerId: string; segmentIndex: number }> {
+    const cx = Math.floor(pos.x / this.cellSize);
+    const cy = Math.floor(pos.y / this.cellSize);
+    const nearby: Array<{ segment: Vec; ownerId: string; segmentIndex: number }> = [];
+
+    // Check 9 cells: center + 8 neighbors (handles wrapping)
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const checkX = (cx + dx + this.cols) % this.cols;
+        const checkY = (cy + dy + this.rows) % this.rows;
+        const key = `${checkX},${checkY}`;
+        const cell = this.grid.get(key);
+        if (cell) nearby.push(...cell);
+      }
+    }
+    return nearby;
+  }
+
+  clear() {
+    this.grid.clear();
+  }
+}
+
 type PlayerState = {
   id: string;
   name: string;
@@ -310,32 +366,40 @@ function step() {
     }
   }
 
-  // collisions (head-to-body, simple)
+  // collisions (head-to-body, optimized with spatial partitioning)
   const dead: string[] = [];
-  const bodies: BodyData[] =
-    Array.from(players.values())
-      .filter(p => p.alive)
-      .map(p => ({ ownerId: p.id, points: p.body }));
-
+  
+  // Build spatial grid from all body segments
+  const grid = new SpatialGrid(WORLD.width, WORLD.height, 100);
   for (const p of players.values()) {
     if (!p.alive) continue;
-    for (const b of bodies) {
-      // allow touching your first few segments (hinge)
-      const pts = b.ownerId === p.id ? b.points.slice(6) : b.points;
-      for (const q of pts) {
-        if (dist2(p.pos, q) < HEAD_R2) {
-          p.alive = false;
-          dead.push(p.id);
-          
-          // Create food burst from dead worm
-          const burstFood = createFoodBurst(p);
-          foods.push(...burstFood);
-          
-          break;
-        }
-      }
-      if (!p.alive) break;
+    for (let i = 0; i < p.body.length; i++) {
+      grid.insert(p.body[i], p.id, i);
     }
+  }
+
+  // Check each player head against nearby segments only
+  for (const p of players.values()) {
+    if (!p.alive) continue;
+    
+    const nearbySegments = grid.queryNearby(p.pos);
+    
+    for (const { segment, ownerId, segmentIndex } of nearbySegments) {
+      // allow touching your first few segments (hinge)
+      if (ownerId === p.id && segmentIndex < 6) continue;
+      
+      if (dist2(p.pos, segment) < HEAD_R2) {
+        p.alive = false;
+        dead.push(p.id);
+        
+        // Create food burst from dead worm
+        const burstFood = createFoodBurst(p);
+        foods.push(...burstFood);
+        
+        break;
+      }
+    }
+    if (!p.alive) break;
   }
 
   // Check head-to-head collisions (simple version)
