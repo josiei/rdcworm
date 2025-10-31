@@ -425,9 +425,15 @@ export default function Game({
         const now = performance.now();
         const elapsed = now - snapBuffer.prevTime;
         const duration = snapBuffer.nextTime - snapBuffer.prevTime;
-        const t = Math.min(1, elapsed / duration);
-        const interpolated = interpolateSnapshot(snapBuffer.prev, snapBuffer.next, t);
-        if (interpolated) snap = interpolated;
+        
+        // Only interpolate if duration is reasonable (< 200ms)
+        // This prevents weird jumps when packets are delayed
+        if (duration < 200) {
+          const t = Math.max(0, Math.min(1, elapsed / duration));
+          const interpolated = interpolateSnapshot(snapBuffer.prev, snapBuffer.next, t);
+          if (interpolated) snap = interpolated;
+        }
+        // If duration is too long, just use the latest snapshot (no interpolation)
       }
 
       const players = snap!.players;
