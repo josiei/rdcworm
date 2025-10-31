@@ -533,6 +533,7 @@ export default function Game({
             <TournamentEndOverlay
               winnerName={(snapshot as any).tournamentWinner.name}
               winnerScore={(snapshot as any).tournamentWinner.score}
+              onBackToLobby={() => window.location.reload()}
             />
           )}
           {isSpectating && onBackToLobby && (

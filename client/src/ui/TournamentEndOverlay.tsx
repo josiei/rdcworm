@@ -3,9 +3,10 @@
 type Props = {
   winnerName: string;
   winnerScore: number;
+  onBackToLobby: () => void;
 };
 
-export default function TournamentEndOverlay({ winnerName, winnerScore }: Props) {
+export default function TournamentEndOverlay({ winnerName, winnerScore, onBackToLobby }: Props) {
   return (
     <div
       style={{
@@ -61,23 +62,32 @@ export default function TournamentEndOverlay({ winnerName, winnerScore }: Props)
         >
           🎉 Congratulations! 🎉
         </div>
-        <div
+        <button
+          onClick={onBackToLobby}
           style={{
             marginTop: 48,
+            padding: "16px 32px",
+            background: "rgba(34, 204, 136, 0.9)",
+            color: "#001015",
+            border: "2px solid rgba(255, 255, 255, 0.3)",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: "pointer",
             fontSize: 16,
-            opacity: 0.5,
-            animation: "pulse 2s ease-in-out infinite",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(34, 204, 136, 1)";
+            e.currentTarget.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(34, 204, 136, 0.9)";
+            e.currentTarget.style.transform = "scale(1)";
           }}
         >
-          Press SPACEBAR to continue
-        </div>
+          ← Back to Lobby
+        </button>
       </div>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.8; }
-        }
-      `}</style>
     </div>
   );
 }
