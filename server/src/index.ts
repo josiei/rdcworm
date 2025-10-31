@@ -192,17 +192,23 @@ type Room = {
 // Create HTTP server to serve static files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// In production (Heroku), client files are at ../../../client/dist from dist/server/src/index.js
-// In development, they're at ../../client/dist from server/src/index.ts
-const clientDistPath = existsSync(join(__dirname, '../../../client/dist'))
-  ? join(__dirname, '../../../client/dist')
-  : join(__dirname, '../../client/dist');
+// Try multiple paths to find client dist (works in dev and production)
+let clientDistPath = join(__dirname, '../../client/dist'); // Development: server/src -> client/dist
+if (!existsSync(clientDistPath)) {
+  clientDistPath = join(__dirname, '../../../client/dist'); // Production: dist/server/src -> client/dist
+}
+if (!existsSync(clientDistPath)) {
+  clientDistPath = join(__dirname, '../../../../client/dist'); // Fallback
+}
+console.log('[server] Client dist path:', clientDistPath);
 
 const server = createServer((req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   
-  let filePath = req.url === '/' ? '/index.html' : (req.url || '/index.html');
+  // Strip query parameters from URL
+  const urlPath = (req.url || '/').split('?')[0];
+  let filePath = urlPath === '/' ? '/index.html' : urlPath;
   const fullPath = join(clientDistPath, filePath);
   
   if (existsSync(fullPath)) {
