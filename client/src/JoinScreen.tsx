@@ -14,8 +14,22 @@ const SAMPLE_AVATARS = [
   "/avatars/reba-straight-smile.svg",
 ];
 
+const SILLY_NAMES = [
+  "Wiggly Worm", "Slinky Snake", "Noodle Doodle", "Squiggly Boi",
+  "Wormy McWormface", "Slither Master", "Danger Noodle", "Spaghetti Sam",
+  "Curly Fry", "Twisty Turny", "Loop de Loop", "Bendy Wendy",
+  "Sneaky Snek", "Wiggle Worm", "Squirmy Wormy", "Slippery Slope",
+  "Noodle Knight", "Worm Wizard", "Serpent Steve", "Coily Boily",
+  "Twirly Whirly", "Zigzag Zoe", "Wavy Gravy", "Loopy Lou",
+  "Squiggle Squad", "Ribbon Racer", "Spiral Sam", "Curvy Cathy"
+];
+
+function getRandomName(): string {
+  return SILLY_NAMES[Math.floor(Math.random() * SILLY_NAMES.length)];
+}
+
 export default function JoinScreen({ onJoin }: Props) {
-  const [name, setName] = useState("Player");
+  const [name, setName] = useState(getRandomName());
   const [color, setColor] = useState("#22cc88");
   const [avatar, setAvatar] = useState(SAMPLE_AVATARS[0]);
 
