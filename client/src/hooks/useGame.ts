@@ -100,14 +100,6 @@ export function useGame(
         
         // Buffer snapshots for interpolation
         const now = performance.now();
-        
-        // Skip if this snapshot is older than what we already have
-        // This prevents freeze-then-catchup from delayed packets
-        if (snapBuffer.current.next && snap.t < snapBuffer.current.next.t) {
-          if (throttle("old-snap", 1000)) console.warn("[client] Skipping old snapshot");
-          return;
-        }
-        
         snapBuffer.current.prev = snapBuffer.current.next;
         snapBuffer.current.prevTime = snapBuffer.current.nextTime;
         snapBuffer.current.next = snap;

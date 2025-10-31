@@ -18,41 +18,42 @@ const canLog = (() => {
   };
 })();
 
-// ---------- interpolation helpers ----------
-function lerpVec(a: Vec, b: Vec, t: number): Vec {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-}
-
-function lerpAngle(a: number, b: number, t: number): number {
-  let diff = b - a;
-  while (diff > Math.PI) diff -= 2 * Math.PI;
-  while (diff < -Math.PI) diff += 2 * Math.PI;
-  return a + diff * t;
-}
-
-function interpolateSnapshot(prev: any, next: any, t: number): any {
-  if (!prev || !next) return next;
-  
-  return {
-    ...next,
-    players: next.players.map((np: PlayerView) => {
-      const pp = prev.players.find((p: PlayerView) => p.id === np.id);
-      if (!pp) return np;
-      
-      return {
-        ...np,
-        head: {
-          pos: lerpVec(pp.head.pos, np.head.pos, t),
-          angle: lerpAngle(pp.head.angle, np.head.angle, t)
-        },
-        body: np.body.map((nb: Vec, i: number) => {
-          if (i >= pp.body.length) return nb;
-          return lerpVec(pp.body[i], nb, t);
-        })
-      };
-    })
-  };
-}
+// ---------- interpolation helpers (disabled) ----------
+// Interpolation disabled for now due to high latency issues
+// function lerpVec(a: Vec, b: Vec, t: number): Vec {
+//   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+// }
+// 
+// function lerpAngle(a: number, b: number, t: number): number {
+//   let diff = b - a;
+//   while (diff > Math.PI) diff -= 2 * Math.PI;
+//   while (diff < -Math.PI) diff += 2 * Math.PI;
+//   return a + diff * t;
+// }
+//
+// function interpolateSnapshot(prev: any, next: any, t: number): any {
+//   if (!prev || !next) return next;
+//   
+//   return {
+//     ...next,
+//     players: next.players.map((np: PlayerView) => {
+//       const pp = prev.players.find((p: PlayerView) => p.id === np.id);
+//       if (!pp) return np;
+//       
+//       return {
+//         ...np,
+//         head: {
+//           pos: lerpVec(pp.head.pos, np.head.pos, t),
+//           angle: lerpAngle(pp.head.angle, np.head.angle, t)
+//         },
+//         body: np.body.map((nb: Vec, i: number) => {
+//           if (i >= pp.body.length) return nb;
+//           return lerpVec(pp.body[i], nb, t);
+//         })
+//       };
+//     })
+//   };
+// }
 
 // ---------- avatar cache ----------
 function useAvatarCache() {
@@ -321,7 +322,7 @@ export default function Game({
   adminToken?: string;
   onBackToLobby?: () => void;
 }) {
-  const { selfId, world, snapshot, sendTurn, sendBoost, snapBuffer } = useGame(name, color, avatar, roomId, mode, adminToken);
+  const { selfId, world, snapshot, sendTurn, sendBoost } = useGame(name, color, avatar, roomId, mode, adminToken);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
   const foodAssets = useFoodAssetCache();
@@ -420,21 +421,18 @@ export default function Game({
         return;
       }
 
-      // Interpolate between snapshots for smooth 60 FPS
-      if (snapBuffer.prev && snapBuffer.next && snapBuffer.nextTime > snapBuffer.prevTime) {
-        const now = performance.now();
-        const elapsed = now - snapBuffer.prevTime;
-        const duration = snapBuffer.nextTime - snapBuffer.prevTime;
-        
-        // Only interpolate if duration is reasonable (< 200ms)
-        // This prevents weird jumps when packets are delayed
-        if (duration < 200) {
-          const t = Math.max(0, Math.min(1, elapsed / duration));
-          const interpolated = interpolateSnapshot(snapBuffer.prev, snapBuffer.next, t);
-          if (interpolated) snap = interpolated;
-        }
-        // If duration is too long, just use the latest snapshot (no interpolation)
-      }
+      // Interpolation disabled for now - causing issues with high latency
+      // TODO: Re-enable with better network handling
+      // if (snapBuffer.prev && snapBuffer.next && snapBuffer.nextTime > snapBuffer.prevTime) {
+      //   const now = performance.now();
+      //   const elapsed = now - snapBuffer.prevTime;
+      //   const duration = snapBuffer.nextTime - snapBuffer.prevTime;
+      //   if (duration < 200) {
+      //     const t = Math.max(0, Math.min(1, elapsed / duration));
+      //     const interpolated = interpolateSnapshot(snapBuffer.prev, snapBuffer.next, t);
+      //     if (interpolated) snap = interpolated;
+      //   }
+      // }
 
       const players = snap!.players;
       const me = selfId ? players.find(p => p.id === selfId) : undefined;

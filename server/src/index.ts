@@ -21,7 +21,7 @@ import {
 } from "./game-engine.js";
 
 const TICK_HZ = 30;
-const STATE_HZ = 20; // Broadcast at 20 Hz, client interpolates to 60 FPS
+const STATE_HZ = 30; // Broadcast at 30 Hz (interpolation disabled due to high latency issues)
 const STATE_INTERVAL_MS = 1000 / STATE_HZ;
 const WORLD: WorldView = { width: 2000, height: 1200 };
 const PORT = Number(process.env.PORT) || 8080;
