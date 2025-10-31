@@ -4,6 +4,13 @@ import type {
   AnyServerMsg, Welcome, Snapshot, WorldView
 } from "../net/protocol";
 
+type InterpolationBuffer = {
+  prev: Snapshot | null;
+  next: Snapshot | null;
+  prevTime: number;
+  nextTime: number;
+};
+
 
 const WS_URL = typeof window !== 'undefined' && window.location.protocol === 'https:' 
   ? `wss://${window.location.host}` 
@@ -22,6 +29,12 @@ export function useGame(name: string, color: string, avatar?: string) {
   const [selfId, setSelfId] = useState<string | null>(null);
   const [world, setWorld] = useState<WorldView | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [snapBuffer, setSnapBuffer] = useState<InterpolationBuffer>({
+    prev: null,
+    next: null,
+    prevTime: 0,
+    nextTime: 0
+  });
   const wsRef = useRef<WebSocket | null>(null);
 
   // throttle helper for logs
@@ -67,6 +80,16 @@ export function useGame(name: string, color: string, avatar?: string) {
           }
           return;
         }
+        
+        // Update interpolation buffer
+        const now = performance.now();
+        setSnapBuffer(prev => ({
+          prev: prev.next,
+          next: snap,
+          prevTime: prev.nextTime,
+          nextTime: now
+        }));
+        
         setSnapshot(snap);
         return;
       }
@@ -116,6 +139,6 @@ export function useGame(name: string, color: string, avatar?: string) {
   };
 
   return {
-    connected, selfId, world, snapshot, sendTurn, sendBoost,
+    connected, selfId, world, snapshot, snapBuffer, sendTurn, sendBoost,
   } as const;
 }
