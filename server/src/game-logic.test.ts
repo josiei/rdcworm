@@ -1,18 +1,7 @@
 // server/src/game-logic.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Vec, WorldView } from '../../client/src/net/protocol';
-
-// Test helpers - these will be extracted from index.ts
-function wrap(v: number, max: number) {
-  if (v < 0) return v + max;
-  if (v >= max) return v - max;
-  return v;
-}
-
-function dist2(a: Vec, b: Vec) {
-  const dx = a.x - b.x, dy = a.y - b.y;
-  return dx*dx + dy*dy;
-}
+import { wrap, dist2, FOOD_R2, HEAD_R2, calculateBodyLength, calculateThickness, calculateFoodBurst } from './game-engine';
 
 describe('Game Physics', () => {
   describe('wrap function (toroidal world)', () => {
@@ -80,8 +69,6 @@ describe('Player Movement', () => {
 });
 
 describe('Collision Detection', () => {
-  const FOOD_R2 = 18*18;
-  const HEAD_R2 = 14*14;
 
   it('should detect food collision', () => {
     const head: Vec = { x: 100, y: 100 };
@@ -107,32 +94,12 @@ describe('Collision Detection', () => {
 
 describe('Score and Body Growth', () => {
   it('should calculate correct body length from score', () => {
-    const calculateBodyLength = (score: number) => {
-      const targetLen = Math.max(15, Math.floor(score * 0.8));
-      const maxLen = 300;
-      return Math.min(targetLen, maxLen);
-    };
-
     expect(calculateBodyLength(10)).toBe(15); // minimum
     expect(calculateBodyLength(50)).toBe(40); // 50 * 0.8
     expect(calculateBodyLength(500)).toBe(300); // capped at max
   });
 
   it('should calculate thickness bonus for large worms', () => {
-    const calculateThickness = (score: number) => {
-      const targetLen = Math.max(15, Math.floor(score * 0.8));
-      const maxLen = 300;
-      const baseThickness = 14;
-      const maxThickness = 28;
-      
-      if (targetLen >= maxLen) {
-        const excessScore = score - (maxLen / 0.8);
-        const thicknessBonus = Math.min(excessScore * 0.1, maxThickness - baseThickness);
-        return baseThickness + Math.max(0, thicknessBonus);
-      }
-      return baseThickness;
-    };
-
     expect(calculateThickness(100)).toBe(14); // normal
     expect(calculateThickness(375)).toBe(14); // at max length
     expect(calculateThickness(475)).toBe(24); // 10 bonus thickness
@@ -185,11 +152,10 @@ describe('Boost Mechanics', () => {
 
 describe('Food Burst on Death', () => {
   it('should create food based on worm size', () => {
-    const bodySegments = 150;
+    const bodyLength = 150;
     const score = 200;
     
-    const segmentFood = Math.floor(bodySegments / 3);
-    const bonusFood = Math.min(Math.floor(score / 8), 25);
+    const { segmentFood, bonusFood } = calculateFoodBurst(bodyLength, score);
     const totalFood = segmentFood + bonusFood;
     
     expect(segmentFood).toBe(50);
@@ -198,11 +164,10 @@ describe('Food Burst on Death', () => {
   });
 
   it('should cap food burst', () => {
-    const bodySegments = 300; // max
+    const bodyLength = 300; // max
     const score = 1000; // huge
     
-    const segmentFood = Math.floor(Math.min(bodySegments, 150) / 3);
-    const bonusFood = Math.min(Math.floor(score / 8), 25);
+    const { segmentFood, bonusFood } = calculateFoodBurst(bodyLength, score);
     
     expect(segmentFood).toBe(50); // capped at 150 segments
     expect(bonusFood).toBe(25); // capped at 25
