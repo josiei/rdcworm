@@ -375,20 +375,9 @@ export default function Game({
   // keyboard -> turn and boost messages
   useEffect(() => {
     if (!snapshot) return;
-    
-    // Track which keys are currently held
-    const keysHeld = new Set<string>();
-    
     const onKey = (e: KeyboardEvent) => {
-      // Track key state
-      keysHeld.add(e.key);
-      
-      // Arrow Up for boost
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        sendBoost(true);
-      }
-      
+      if (e.key === "ArrowLeft") sendTurn(-1);
+      if (e.key === "ArrowRight") sendTurn(1);
       if (e.key === " ") {
         e.preventDefault();
         
@@ -408,27 +397,15 @@ export default function Game({
         sendBoost(true);
       }
     };
-    
     const onKeyUp = (e: KeyboardEvent) => {
-      keysHeld.delete(e.key);
-      
-      if (e.key === " " || e.key === "ArrowUp") {
+      if (e.key === " ") {
         e.preventDefault();
         sendBoost(false);
       }
     };
-    
-    // Continuous turn based on held keys
-    const turnInterval = setInterval(() => {
-      if (keysHeld.has("ArrowLeft")) sendTurn(-1);
-      else if (keysHeld.has("ArrowRight")) sendTurn(1);
-      else sendTurn(0);
-    }, 50); // Send turn state 20 times per second
-    
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKeyUp);
     return () => {
-      clearInterval(turnInterval);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKeyUp);
     };
