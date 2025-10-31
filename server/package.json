@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/server/src/index.js"
+    "start": "node dist/server/src/index.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "type": "module",
   "keywords": [],
@@ -14,11 +17,13 @@
   "description": "",
   "dependencies": {
     "nanoid": "^5.1.6",
-    "ws": "^8.18.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",
-    "tsx": "^4.20.6"
+    "@vitest/ui": "^4.0.5",
+    "tsx": "^4.20.6",
+    "vitest": "^4.0.5"
   }
 }

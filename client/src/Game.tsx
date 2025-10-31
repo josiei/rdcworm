@@ -5,14 +5,6 @@ import { useGame } from "./hooks/useGame";
 import Leaderboard from "./ui/Leaderboard";
 import Score from "./ui/Score";
 
-// Interpolation buffer type (matches useGame)
-type InterpolationBuffer = {
-  prev: Snapshot | null;
-  next: Snapshot | null;
-  prevTime: number;
-  nextTime: number;
-};
-
 // ---------- small log throttle so console doesn't spam ----------
 const canLog = (() => {
   const t = new Map<string, number>();
@@ -23,66 +15,6 @@ const canLog = (() => {
     return false;
   };
 })();
-
-// ---------- interpolation helpers ----------
-function lerpAngle(a: number, b: number, t: number): number {
-  // Handle angle wrapping (shortest path)
-  let diff = b - a;
-  if (diff > Math.PI) diff -= 2 * Math.PI;
-  if (diff < -Math.PI) diff += 2 * Math.PI;
-  return a + diff * Math.max(0, Math.min(1, t));
-}
-
-function lerpVec(a: Vec, b: Vec, t: number, world: { width: number; height: number }): Vec {
-  // Handle toroidal wrapping for position interpolation
-  let dx = b.x - a.x;
-  let dy = b.y - a.y;
-  
-  // Wrap around world boundaries (shortest path)
-  if (dx > world.width / 2) dx -= world.width;
-  if (dx < -world.width / 2) dx += world.width;
-  if (dy > world.height / 2) dy -= world.height;
-  if (dy < -world.height / 2) dy += world.height;
-  
-  return {
-    x: a.x + dx * Math.max(0, Math.min(1, t)),
-    y: a.y + dy * Math.max(0, Math.min(1, t))
-  };
-}
-
-function interpolateSnapshot(
-  buffer: InterpolationBuffer,
-  renderTime: number,
-  world: { width: number; height: number }
-): Snapshot | null {
-  // No data yet
-  if (!buffer.next) return buffer.prev;
-  if (!buffer.prev) return buffer.next;
-  
-  const duration = buffer.nextTime - buffer.prevTime;
-  if (duration <= 0) return buffer.next; // Same timestamp or invalid
-  
-  const elapsed = renderTime - buffer.prevTime;
-  const alpha = Math.min(1, elapsed / duration); // 0 to 1, capped at 1
-  
-  // Interpolate each player's head position and angle
-  const interpolatedPlayers = buffer.next.players.map(nextPlayer => {
-    const prevPlayer = buffer.prev!.players.find(p => p.id === nextPlayer.id);
-    
-    // New player or dead player - no interpolation
-    if (!prevPlayer || !nextPlayer.alive) return nextPlayer;
-    
-    return {
-      ...nextPlayer,
-      head: {
-        pos: lerpVec(prevPlayer.head.pos, nextPlayer.head.pos, alpha, world),
-        angle: lerpAngle(prevPlayer.head.angle, nextPlayer.head.angle, alpha)
-      }
-    };
-  });
-  
-  return { ...buffer.next, players: interpolatedPlayers };
-}
 
 // ---------- avatar cache ----------
 function useAvatarCache() {
@@ -335,7 +267,7 @@ function DeathOverlay({ playerName }: {
 
 // ---------- main component ----------
 export default function Game({ name, color, avatar }: { name: string; color: string; avatar?: string }) {
-  const { selfId, world, snapshot, snapBuffer, sendTurn, sendBoost } = useGame(name, color, avatar);
+  const { selfId, world, snapshot, sendTurn, sendBoost } = useGame(name, color, avatar);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
   const foodAssets = useFoodAssetCache();
@@ -413,16 +345,8 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       ctx.fillStyle = "#0F1C2A";
       ctx.fillRect(0, 0, c.width, c.height);
 
-      if (!world) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-
-      // Get interpolated snapshot for smooth 60 FPS rendering from 20 Hz data
-      const now = performance.now();
-      const snap: Snapshot | null = interpolateSnapshot(snapBuffer, now, world);
-      
-      if (!snap) {
+      const snap: Snapshot | null = snapshot;
+      if (!snap || !world) {
         raf = requestAnimationFrame(loop);
         return;
       }
@@ -493,7 +417,7 @@ export default function Game({ name, color, avatar }: { name: string; color: str
 
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [snapBuffer, world, selfId, avatars]);
+  }, [snapshot, world, selfId, avatars]);
 
   // HUD (minimal)
   return (
