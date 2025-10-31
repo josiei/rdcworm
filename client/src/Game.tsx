@@ -374,42 +374,33 @@ export default function Game({
 
   // keyboard -> turn and boost messages
   useEffect(() => {
-    if (!snapshot) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") sendTurn(-1);
-      if (e.key === "ArrowRight") sendTurn(1);
-      if (e.key === " ") {
-        e.preventDefault();
-        
-        // Check if tournament ended - go back to join screen
-        if ((snapshot as any).tournamentWinner) {
-          window.location.reload();
-          return;
-        }
+      if (e.repeat) return;
+      if (e.type === "keydown") {
+        if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") sendTurn(-1);
+        if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") sendTurn(1);
+        if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") sendBoost(true);
         
         // Spacebar respawn
-        const me = selfId && snapshot ? snapshot.players.find(p => p.id === selfId) : undefined;
-        if (me && !me.alive) {
-          handleRespawn();
-          return;
+        if (e.key === " ") {
+          const me = selfId && snapshot ? snapshot.players.find(p => p.id === selfId) : undefined;
+          if (me && !me.alive) {
+            handleRespawn();
+          }
         }
-        
-        sendBoost(true);
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === " ") {
-        e.preventDefault();
-        sendBoost(false);
+      } else {
+        if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") sendTurn(0);
+        if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") sendTurn(0);
+        if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") sendBoost(false);
       }
     };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("keyup", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("keyup", onKey);
     };
-  }, [sendTurn, sendBoost, snapshot, selfId]);
+  }, [sendTurn, sendBoost]);
 
   // render loop with camera that centers on self head
   useEffect(() => {
