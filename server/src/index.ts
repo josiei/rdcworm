@@ -192,7 +192,11 @@ type Room = {
 // Create HTTP server to serve static files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const clientDistPath = join(__dirname, '../../../../client/dist');
+// In production (Heroku), client files are at ../../../client/dist from dist/server/src/index.js
+// In development, they're at ../../client/dist from server/src/index.ts
+const clientDistPath = existsSync(join(__dirname, '../../../client/dist'))
+  ? join(__dirname, '../../../client/dist')
+  : join(__dirname, '../../client/dist');
 
 const server = createServer((req, res) => {
   // Enable CORS
