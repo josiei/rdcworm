@@ -17,12 +17,32 @@ function isSnapshot(x: any): x is Snapshot {
     Array.isArray(x.foods);
 }
 
-export function useGame(name: string, color: string, avatar?: string) {
+type InterpolationBuffer = {
+  prev: Snapshot | null;
+  next: Snapshot | null;
+  prevTime: number;
+  nextTime: number;
+};
+
+export function useGame(
+  name: string, 
+  color: string, 
+  avatar?: string,
+  roomId?: string,
+  mode?: "playing" | "spectating",
+  adminToken?: string
+) {
   const [connected, setConnected] = useState(false);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [world, setWorld] = useState<WorldView | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const snapBuffer = useRef<InterpolationBuffer>({
+    prev: null,
+    next: null,
+    prevTime: 0,
+    nextTime: 0
+  });
 
   // throttle helper for logs
   const throttle = (key: string, ms: number) => {
@@ -40,7 +60,23 @@ export function useGame(name: string, color: string, avatar?: string) {
     ws.addEventListener("open", () => {
       setConnected(true);
       console.log(`[client] ws open: ${WS_URL}`);
-      ws.send(JSON.stringify({ type: "hello", name, color, avatar }));
+      
+      const helloMsg: any = { 
+        type: "hello", 
+        name, 
+        color, 
+        avatar,
+        roomId: roomId || "chill",
+        mode: mode || "playing"
+      };
+      
+      // Include admin token if provided
+      if (adminToken) {
+        helloMsg.adminToken = adminToken;
+        console.log(`[client] Authenticating as admin`);
+      }
+      
+      ws.send(JSON.stringify(helloMsg));
     });
 
     ws.addEventListener("message", (e) => {
@@ -56,19 +92,20 @@ export function useGame(name: string, color: string, avatar?: string) {
       }
 
       if (msg.type === "state") {
-        // Accept both canonical { snapshot } and flattened state (back-compat)
-        const snap: Snapshot | undefined = isSnapshot(msg.snapshot)
-          ? msg.snapshot
-          : isSnapshot(msg) ? (msg as Snapshot) : undefined;
-
-        if (!snap) {
-          if (throttle("bad-snapshot", 1000)) {
-            console.warn("[client] malformed state snapshot", msg);
-          }
+        const snap = msg.snapshot;
+        if (!isSnapshot(snap)) {
+          if (throttle("bad-snap", 1000)) console.warn("[client] Invalid snapshot", snap);
           return;
         }
+        
+        // Buffer snapshots for interpolation
+        const now = performance.now();
+        snapBuffer.current.prev = snapBuffer.current.next;
+        snapBuffer.current.prevTime = snapBuffer.current.nextTime;
+        snapBuffer.current.next = snap;
+        snapBuffer.current.nextTime = now;
+        
         setSnapshot(snap);
-        return;
       }
     });
 
@@ -115,7 +152,14 @@ export function useGame(name: string, color: string, avatar?: string) {
     ws.send(JSON.stringify({ type: "boost", boosting }));
   };
 
+  const sendAdminCommand = (command: any) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify(command));
+    }
+  };
+
   return {
-    connected, selfId, world, snapshot, sendTurn, sendBoost,
+    connected, selfId, world, snapshot, sendTurn, sendBoost, sendAdminCommand, snapBuffer: snapBuffer.current,
   } as const;
 }

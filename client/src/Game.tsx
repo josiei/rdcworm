@@ -1,9 +1,11 @@
 // client/src/Game.tsx
-import { useEffect, useMemo, useRef } from "react";
-import type { Food, FoodItem, PlayerView, Snapshot, Vec } from "./net/protocol";
+import { useEffect, useRef, useMemo } from "react";
 import { useGame } from "./hooks/useGame";
+import type { Snapshot, PlayerView, Vec, FoodItem } from "./net/protocol";
 import Leaderboard from "./ui/Leaderboard";
 import Score from "./ui/Score";
+import TournamentTimer from "./ui/TournamentTimer";
+import TournamentEndOverlay from "./ui/TournamentEndOverlay";
 
 // ---------- small log throttle so console doesn't spam ----------
 const canLog = (() => {
@@ -15,6 +17,42 @@ const canLog = (() => {
     return false;
   };
 })();
+
+// ---------- interpolation helpers ----------
+function lerpVec(a: Vec, b: Vec, t: number): Vec {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function lerpAngle(a: number, b: number, t: number): number {
+  let diff = b - a;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  return a + diff * t;
+}
+
+function interpolateSnapshot(prev: any, next: any, t: number): any {
+  if (!prev || !next) return next;
+  
+  return {
+    ...next,
+    players: next.players.map((np: PlayerView) => {
+      const pp = prev.players.find((p: PlayerView) => p.id === np.id);
+      if (!pp) return np;
+      
+      return {
+        ...np,
+        head: {
+          pos: lerpVec(pp.head.pos, np.head.pos, t),
+          angle: lerpAngle(pp.head.angle, np.head.angle, t)
+        },
+        body: np.body.map((nb: Vec, i: number) => {
+          if (i >= pp.body.length) return nb;
+          return lerpVec(pp.body[i], nb, t);
+        })
+      };
+    })
+  };
+}
 
 // ---------- avatar cache ----------
 function useAvatarCache() {
@@ -82,7 +120,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.restore();
 }
 
-function drawFoods(ctx: CanvasRenderingContext2D, foods: Food[]) {
+function drawFoods(ctx: CanvasRenderingContext2D, foods: Vec[]) {
   ctx.save();
   ctx.fillStyle = "#F7C96E";
   for (const f of foods) {
@@ -266,15 +304,33 @@ function DeathOverlay({ playerName }: {
 }
 
 // ---------- main component ----------
-export default function Game({ name, color, avatar }: { name: string; color: string; avatar?: string }) {
-  const { selfId, world, snapshot, sendTurn, sendBoost } = useGame(name, color, avatar);
+export default function Game({ 
+  name, 
+  color, 
+  avatar,
+  roomId,
+  mode,
+  adminToken,
+  onBackToLobby
+}: { 
+  name: string; 
+  color: string; 
+  avatar?: string;
+  roomId?: string;
+  mode?: "playing" | "spectating";
+  adminToken?: string;
+  onBackToLobby?: () => void;
+}) {
+  const { selfId, world, snapshot, sendTurn, sendBoost, snapBuffer } = useGame(name, color, avatar, roomId, mode, adminToken);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const avatars = useAvatarCache();
   const foodAssets = useFoodAssetCache();
   
+  const isSpectating = mode === "spectating";
+  
   // Smooth zoom animation state
-  const currentZoom = useRef(2.5); // Current interpolated zoom value
-  const targetZoom = useRef(2.5);  // Target zoom we're animating towards
+  const currentZoom = useRef(isSpectating ? 1.0 : 2.5); // Spectators see full map
+  const targetZoom = useRef(isSpectating ? 1.0 : 2.5);
 
   // resize canvas to viewport
   useEffect(() => {
@@ -288,6 +344,19 @@ export default function Game({ name, color, avatar }: { name: string; color: str
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
+
+  // zoom with mouse wheel (disabled for spectators)
+  useEffect(() => {
+    if (isSpectating) return; // Spectators have fixed zoom
+    
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      targetZoom.current = Math.max(0.5, Math.min(5, targetZoom.current * delta));
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [isSpectating]);
 
   // respawn handler
   const handleRespawn = () => {
@@ -345,13 +414,23 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       ctx.fillStyle = "#0F1C2A";
       ctx.fillRect(0, 0, c.width, c.height);
 
-      const snap: Snapshot | null = snapshot;
+      let snap: Snapshot | null = snapshot;
       if (!snap || !world) {
         raf = requestAnimationFrame(loop);
         return;
       }
 
-      const players = snap.players;
+      // Interpolate between snapshots for smooth 60 FPS
+      if (snapBuffer.prev && snapBuffer.next && snapBuffer.nextTime > snapBuffer.prevTime) {
+        const now = performance.now();
+        const elapsed = now - snapBuffer.prevTime;
+        const duration = snapBuffer.nextTime - snapBuffer.prevTime;
+        const t = Math.min(1, elapsed / duration);
+        const interpolated = interpolateSnapshot(snapBuffer.prev, snapBuffer.next, t);
+        if (interpolated) snap = interpolated;
+      }
+
+      const players = snap!.players;
       const me = selfId ? players.find(p => p.id === selfId) : undefined;
 
       if (canLog("frame-info", 1000)) {
@@ -362,7 +441,13 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       // Dynamic zoom based on worm size - closer when small, further when big
       let zoom = 2.5; // Default zoom for baby worms
       let camX = 0, camY = 0;
-      if (me) {
+      
+      if (isSpectating) {
+        // Spectator mode: show full map
+        zoom = Math.min(c.width / world.width, c.height / world.height);
+        camX = 0;
+        camY = 0;
+      } else if (me) {
         const score = me.score;
         
         // Calculate target zoom based on score
@@ -398,9 +483,9 @@ export default function Game({ name, color, avatar }: { name: string; color: str
 
       // draw world contents in world-space
       drawGrid(ctx, world.width, world.height);
-      drawFoods(ctx, snap.foods);
-      if (snap.bonusFood) {
-        drawBonusFood(ctx, snap.bonusFood, foodAssets);
+      drawFoods(ctx, snap!.foods);
+      if (snap!.bonusFood) {
+        drawBonusFood(ctx, snap!.bonusFood, foodAssets);
       }
       for (const p of players.filter(p => p.alive)) {
         drawBody(ctx, p, world);
@@ -428,12 +513,46 @@ export default function Game({ name, color, avatar }: { name: string; color: str
       />
       {snapshot && (
         <>
-          <Score player={selfId ? snapshot.players.find(p => p.id === selfId) : undefined} />
+          {!isSpectating && <Score player={selfId ? snapshot.players.find(p => p.id === selfId) : undefined} />}
           <Leaderboard players={snapshot.players} />
           {(() => {
             const me = selfId ? snapshot.players.find(p => p.id === selfId) : undefined;
             return me && !me.alive ? <DeathOverlay playerName={name} /> : null;
           })()}
+          {(snapshot as any).tournamentTimer && (
+            <TournamentTimer 
+              remaining={(snapshot as any).tournamentTimer.remaining}
+              duration={(snapshot as any).tournamentTimer.duration}
+            />
+          )}
+          {(snapshot as any).tournamentWinner && (
+            <TournamentEndOverlay
+              winnerName={(snapshot as any).tournamentWinner.name}
+              winnerScore={(snapshot as any).tournamentWinner.score}
+            />
+          )}
+          {isSpectating && onBackToLobby && (
+            <button
+              onClick={onBackToLobby}
+              style={{
+                position: "fixed",
+                bottom: 20,
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "12px 24px",
+                background: "rgba(34, 204, 136, 0.9)",
+                color: "#001015",
+                border: "2px solid rgba(255, 255, 255, 0.3)",
+                borderRadius: 8,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: 14,
+                zIndex: 100,
+              }}
+            >
+              ← Back to Lobby
+            </button>
+          )}
         </>
       )}
     </>
